@@ -1,0 +1,459 @@
+{
+	"info": {
+		"_postman_id": "cf555feb-5e3e-4366-a92c-0c4b907c6264",
+		"name": "Hawkify - Auth (registro + login JWT)",
+		"description": "Coleccion para probar el modulo de autenticacion del backend de Hawkify (Spring Boot). Cubre registro, login con JWT, el endpoint protegido /me y los casos de error mas comunes.\n\nFlujo recomendado: correr en orden dentro de la carpeta \"1. Flujo feliz\" (Registrar -> Login -> Obtener perfil), luego probar \"2. Casos de error\". El token y el correo de prueba se guardan automaticamente en variables de la coleccion, no hace falta copiarlos a mano.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Flujo feliz",
+			"item": [
+				{
+					"name": "Registrar usuario",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Genera un correo unico en cada corrida para evitar choques con registros previos",
+									"const correo = `usuario.${Date.now()}@hawkify.test`;",
+									"pm.collectionVariables.set('correoPrueba', correo);",
+									"pm.collectionVariables.set('passwordPrueba', 'ClaveSegura123');"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Responde con el usuario creado como usuario_final activo', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.id).to.be.a('string');",
+									"    pm.expect(json.correo).to.eql(pm.collectionVariables.get('correoPrueba'));",
+									"    pm.expect(json.rol).to.eql('usuario_final');",
+									"    pm.expect(json.estado).to.eql('activo');",
+									"});",
+									"",
+									"pm.test('No expone la contrasena ni su hash', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.not.have.property('password');",
+									"    pm.expect(json).to.not.have.property('passwordHash');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombreCompleto\": \"Usuario de Prueba\",\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"{{passwordPrueba}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/registro",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"registro"
+							]
+						},
+						"description": "RF-01: registra un usuario final nuevo. El correo se genera dinamicamente en el pre-request script para poder correr esta peticion varias veces sin chocar con RF (correo duplicado)."
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Responde con un JWT y datos del usuario', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.token).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.tokenType).to.eql('Bearer');",
+									"    pm.expect(json.correo).to.eql(pm.collectionVariables.get('correoPrueba'));",
+									"    pm.expect(json.rol).to.eql('usuario_final');",
+									"",
+									"    // Se guarda para que las siguientes peticiones lo usen automaticamente",
+									"    pm.collectionVariables.set('jwtToken', json.token);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"{{passwordPrueba}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "RF-02: autentica al usuario registrado en la peticion anterior y devuelve un JWT. Requiere haber corrido 'Registrar usuario' primero en esta misma sesion de Postman (usa las variables correoPrueba/passwordPrueba)."
+					}
+				},
+				{
+					"name": "Obtener perfil autenticado (/me)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('El perfil devuelto corresponde al usuario logueado', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.correo).to.eql(pm.collectionVariables.get('correoPrueba'));",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"description": "Endpoint protegido: exige el JWT obtenido en 'Login' (Authorization: Bearer {{jwtToken}}). Sirve para confirmar que JwtAuthenticationFilter valida el token y resuelve el usuario correctamente."
+					}
+				}
+			],
+			"description": "Corre estas 3 peticiones en orden. Cada una alimenta variables de coleccion que usa la siguiente (correoPrueba, passwordPrueba, jwtToken) - no hay que copiar/pegar nada a mano."
+		},
+		{
+			"name": "2. Casos de error",
+			"item": [
+				{
+					"name": "Registro con correo duplicado (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 409 Conflict', function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test('Mensaje indica correo duplicado', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.error).to.eql('Correo duplicado');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombreCompleto\": \"Usuario de Prueba\",\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"{{passwordPrueba}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/registro",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"registro"
+							]
+						},
+						"description": "Reutiliza el correo generado en 'Registrar usuario' del flujo feliz. Correlo despues de ese, no de forma aislada."
+					}
+				},
+				{
+					"name": "Registro con datos invalidos (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 400 Bad Request', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Reporta error por cada campo invalido', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.fieldErrors).to.have.property('nombreCompleto');",
+									"    pm.expect(json.fieldErrors).to.have.property('correo');",
+									"    pm.expect(json.fieldErrors).to.have.property('password');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombreCompleto\": \"\",\n  \"correo\": \"no-es-un-correo\",\n  \"password\": \"123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/registro",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"registro"
+							]
+						},
+						"description": "Nombre vacio, correo con formato invalido y password mas corto que el minimo (8 caracteres)."
+					}
+				},
+				{
+					"name": "Login con contrasena incorrecta (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"{{correoPrueba}}\",\n  \"password\": \"ClaveIncorrecta999\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Usa el correo de prueba ya registrado pero con una contrasena erronea."
+					}
+				},
+				{
+					"name": "Login con usuario inexistente (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"no.existe.en.hawkify@test.com\",\n  \"password\": \"CualquierClave123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Acceso a /me sin token (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 403 Forbidden', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Sin header Authorization. SecurityConfig exige autenticacion para cualquier ruta que no sea /registro o /login."
+					}
+				},
+				{
+					"name": "Acceso a /me con token invalido (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 403 Forbidden', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "token.invalido.corrupto",
+									"type": "string"
+								}
+							]
+						},
+						"description": "Token con formato/firma invalida. JwtAuthenticationFilter debe descartarlo silenciosamente y dejar la peticion sin autenticar."
+					}
+				}
+			],
+			"description": "Casos negativos: cada uno se prueba de forma aislada, pero 'Registro con correo duplicado' y 'Login con contrasena incorrecta' asumen que ya corriste 'Registrar usuario' del flujo feliz en esta sesion (reutilizan {{correoPrueba}})."
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "correoPrueba",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "passwordPrueba",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "jwtToken",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
