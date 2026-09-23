@@ -63,6 +63,21 @@ public class Usuario {
     @Builder.Default
     private EstadoUsuario estado = EstadoUsuario.ACTIVO;
 
+    /** RF-04: suspension temporal. Al vencer, el login reactiva la cuenta. */
+    @Column(name = "suspendido_hasta")
+    private OffsetDateTime suspendidoHasta;
+
+    @Column(name = "motivo_estado")
+    private String motivoEstado;
+
+    /** RF-01: momento en que acepto la Politica de Tratamiento de Datos. */
+    @Column(name = "acepto_politica_en")
+    private OffsetDateTime aceptoPoliticaEn;
+
+    /** Supresion de datos: la cuenta queda anonimizada, no borrada. */
+    @Column(name = "eliminado_en")
+    private OffsetDateTime eliminadoEn;
+
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
 
@@ -79,5 +94,30 @@ public class Usuario {
     @PreUpdate
     protected void alActualizar() {
         this.actualizadoEn = OffsetDateTime.now();
+    }
+
+    public String getNombreRol() {
+        return rol.getNombre();
+    }
+
+    public boolean esSuperadmin() {
+        return RolNombre.SUPERADMIN.equals(rol.getNombre());
+    }
+
+    public boolean esAdministrador() {
+        return RolNombre.ADMINISTRADOR.equals(rol.getNombre());
+    }
+
+    public boolean esStaff() {
+        return esSuperadmin() || esAdministrador();
+    }
+
+    /** Nombre corto para mostrar publicamente: "Laura G." */
+    public String getNombrePublico() {
+        String[] partes = nombreCompleto.trim().split("\\s+");
+        if (partes.length == 1) {
+            return partes[0];
+        }
+        return partes[0] + " " + partes[1].charAt(0) + ".";
     }
 }

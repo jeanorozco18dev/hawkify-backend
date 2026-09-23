@@ -9,6 +9,7 @@ public record AuthResponse(
         UUID usuarioId,
         String nombreCompleto,
         String correo,
-        String rol
+        String rol,
+        UsuarioResponse usuario
 ) {
 }
