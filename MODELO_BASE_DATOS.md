@@ -1,5 +1,14 @@
 # Modelo de Base de Datos — Hawkify
 
+> **Esquema v2 (vigente, ver `schema.sql`).** Cambios frente a lo descrito abajo:
+> `rol_permiso` se reemplazó por `usuario_permiso` (el superadmin define el alcance de cada
+> administrador, RF-05); `usuario` suma `suspendido_hasta`, `motivo_estado`, `acepto_politica_en` y
+> `eliminado_en`; `producto` suma `motivo_rechazo`; `reserva` suma `subtotal`, `costo_envio`,
+> `modalidad_entrega`, `direccion_entrega` y `actualizado_en`; `pago_simulado` admite
+> tarjeta/PSE/Nequi y el estado `reembolsado`; `devolucion` usa `con_dano`; `notificacion` suma el
+> tipo `publicacion`. El log de auditoría es inmutable por trigger y todas las tablas tienen RLS
+> habilitado para Supabase.
+
 **Motor:** PostgreSQL (ver `schema.sql` para el DDL ejecutable, incluye extensión `btree_gist`).
 **Basado en:** `ANALISIS_HAWKIFY.md`, con las decisiones de la sección 6 ya incorporadas:
 

@@ -1,0 +1,20 @@
+# PostgreSQL local para desarrollo (alternativa a Supabase mientras se configura).
+# Carga schema.sql automáticamente la primera vez que se crea el volumen.
+#   docker compose up -d
+#   DB_URL=jdbc:postgresql://localhost:5432/hawkify ./mvnw spring-boot:run
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: hawkify-postgres
+    environment:
+      POSTGRES_DB: hawkify
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - hawkify-datos:/var/lib/postgresql/data
+
+volumes:
+  hawkify-datos:
