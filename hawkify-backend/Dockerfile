@@ -19,8 +19,9 @@ WORKDIR /app
 RUN useradd --system --uid 1001 hawkify && mkdir -p /app/uploads && chown hawkify /app/uploads
 COPY --from=build /app/target/hawkify-backend-*.jar app.jar
 USER hawkify
-# Ajusta el heap al límite de memoria del contenedor (planes pequeños de 512 MB).
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC" \
+# Heap ajustado al contenedor. TieredStopAtLevel=1 (solo compilador C1): con 0.1 CPU
+# (plan gratis de Render) el arranque baja de ~180 s a ~97 s y la RAM de ~345 a ~245 MB.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:TieredStopAtLevel=1" \
     DEMO_SEED=false
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
